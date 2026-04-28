@@ -57,7 +57,7 @@ def admin_dashboard():
     with st.expander("➕ إضافة دائرة جديدة"):
         new_user = st.text_input("اسم مستخدم الدائرة")
         new_pwd = st.text_input("باسورد الدائرة")
-        new_circuit = st.text_input("اسم الدائرة (مثلاً: الدائرة 15 جنايات)")
+        new_circuit = st.text_input("اسم الدائرة (مثلاً: دائرة السبت و الجنائية)")
         if st.button("إنشاء الحساب"):
             add_user(new_user, new_pwd, new_circuit)
             st.success(f"تم إنشاء حساب {new_circuit}")
