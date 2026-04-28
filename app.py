@@ -54,13 +54,51 @@ def admin_dashboard():
     st.title("🚩 لوحة تحكم الإدارة العليا")
     create_admin_tables()
     
+    # --- القسم الأول: إضافة دائرة جديدة ---
     with st.expander("➕ إضافة دائرة جديدة"):
         new_user = st.text_input("اسم مستخدم الدائرة")
         new_pwd = st.text_input("باسورد الدائرة")
-        new_circuit = st.text_input("اسم الدائرة (مثلاً: دائرة السبت و الجنائية)")
+        new_circuit = st.text_input("اسم الدائرة (مثلاً: الدائرة 15 جنايات)")
         if st.button("إنشاء الحساب"):
             add_user(new_user, new_pwd, new_circuit)
             st.success(f"تم إنشاء حساب {new_circuit}")
+            st.rerun()
+
+    # --- القسم الثاني: تعديل أو حذف دائرة ---
+    with st.expander("🛠️ إدارة الحسابات الحالية (تعديل / حذف)"):
+        with engine.connect() as conn:
+            # سحب قائمة المستخدمين لعرضهم في قائمة الاختيار
+            users_list = pd.read_sql("SELECT username FROM users", conn)['username'].tolist()
+            
+        target_user = st.selectbox("اختر اسم المستخدم المراد إدارته", ["---"] + users_list)
+        
+        if target_user != "---":
+            col_edit, col_del = st.columns(2)
+            
+            with col_edit:
+                st.subheader("🔐 تغيير الباسورد")
+                new_pass = st.text_input("كلمة المرور الجديدة", type="password")
+                if st.button("تحديث الباسورد"):
+                    with engine.connect() as conn:
+                        conn.execute(text("UPDATE users SET password = :p WHERE username = :u"), {"p": new_pass, "u": target_user})
+                        conn.commit()
+                    st.success(f"تم تغيير باسورد {target_user} بنجاح")
+
+            with col_del:
+                st.subheader("⚠️ حذف الحساب")
+                st.warning(f"هل أنت متأكد من حذف حساب {target_user}؟")
+                if st.button("تأكيد الحذف النهائي"):
+                    with engine.connect() as conn:
+                        conn.execute(text("DELETE FROM users WHERE username = :u"), {"u": target_user})
+                        conn.commit()
+                    st.error(f"تم حذف حساب {target_user}")
+                    st.rerun()
+
+    # --- القسم الثالث: عرض الجدول للمراقبة ---
+    st.subheader("📋 الدوائر المسجلة حالياً")
+    with engine.connect() as conn:
+        users_df = pd.read_sql("SELECT username, circuit_name FROM users", conn)
+        st.table(users_df)
 
     st.subheader("📋 الدوائر المسجلة حالياً")
     with engine.connect() as conn:
