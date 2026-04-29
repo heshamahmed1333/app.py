@@ -1,13 +1,11 @@
 import streamlit as st
 import pandas as pd
 from sqlalchemy import create_engine, text
-import io
 
-# --- 1. إعدادات قاعدة البيانات (SQLite للتجربة ويمكن تحويلها لـ SQL Server لاحقاً) ---
-DB_URL = "sqlite:///court_system_v2.db"
+# --- 1. إعدادات قاعدة البيانات ---
+DB_URL = "sqlite:///court_system_final.db"
 engine = create_engine(DB_URL)
 
-# --- 2. تهيئة الجداول الأساسية (يتم تشغيلها مرة واحدة) ---
 def init_db():
     with engine.connect() as conn:
         conn.execute(text("""
@@ -22,25 +20,22 @@ def init_db():
 
 init_db()
 
-# --- 3. إعدادات الصفحة ---
+# --- 2. إعدادات الصفحة ---
 st.set_page_config(page_title="منظومة الدوائر الجنائية المتكاملة", layout="wide")
 
-# إدارة الحالة (Session State)
 if 'user_type' not in st.session_state: st.session_state.user_type = None
 if 'user_data' not in st.session_state: st.session_state.user_data = None
 if 'cases' not in st.session_state: st.session_state.cases = []
 
-# --- 4. واجهة تسجيل الدخول ---
+# --- 3. واجهة تسجيل الدخول ---
 def login_page():
-    st.markdown("<h1 style='text-align: center;'>⚖️ تسجيل دخول منظومة الجنايات</h1>", unsafe_allow_html=True)
-    col1, col2, col3 = st.columns([1, 2, 1])
+    st.markdown("<h1 style='text-align: center; color: #1E3A8A;'>⚖️ تسجيل دخول منظومة الجنايات</h1>", unsafe_allow_html=True)
+    col1, col2, col3 = st.columns([1, 1.5, 1])
     with col2:
         with st.form("login_form"):
             user = st.text_input("اسم المستخدم")
             pwd = st.text_input("كلمة المرور", type="password")
-            submit = st.form_submit_button("دخول")
-            
-            if submit:
+            if st.form_submit_button("دخول للمنظومة"):
                 if user == "admin" and pwd == "123":
                     st.session_state.user_type = "admin"
                     st.rerun()
@@ -52,129 +47,142 @@ def login_page():
                             st.session_state.user_data = res
                             st.rerun()
                         else:
-                            st.error("بيانات الدخول غير صحيحة")
+                            st.error("❌ بيانات الدخول غير صحيحة")
 
-# --- 5. لوحة تحكم الأدمن (الإدارة العليا) ---
+# --- 4. لوحة تحكم الأدمن (قوة التحكم الكاملة) ---
 def admin_dashboard():
     st.title("🚩 لوحة تحكم الإدارة العليا")
     
-    tab_add, tab_manage = st.tabs(["➕ إضافة دائرة جديدة", "🛠️ إدارة الدوائر الحالية"])
+    tabs = st.tabs([
+        "➕ إضافة دائرة جديدة", 
+        "🔐 تعديل الحساب (يوزر وباسورد)", 
+        "⚖️ تعديل الهيئة والأقدمية", 
+        "📋 عرض وحذف الدوائر"
+    ])
     
-    with tab_add:
-        with st.form("add_circuit_form"):
-            st.subheader("إعداد بيانات الدائرة والهيئة")
+    # --- التبويب 1: إضافة دائرة ---
+    with tabs[0]:
+        with st.form("add_form"):
+            st.subheader("بيانات الحساب والهيئة")
             c1, c2 = st.columns(2)
             with c1:
-                u = st.text_input("اسم المستخدم (Username)")
-                p = st.text_input("باسورد الدائرة")
-                name = st.text_input("اسم الدائرة (مثال: الدائرة 15 جنايات)")
+                u = st.text_input("اسم المستخدم الجديد")
+                p = st.text_input("كلمة المرور")
+                name = st.text_input("اسم الدائرة (مثلاً: الدائرة 15 جنايات)")
             with c2:
-                js = [st.text_input(f"المستشار {i+1}", key=f"j{i}") for i in range(9)]
-            
-            if st.form_submit_button("حفظ الدائرة الجديدة"):
-                with engine.connect() as conn:
-                    conn.execute(text("INSERT OR REPLACE INTO users VALUES (:u, :p, :n, :j1, :j2, :j3, :j4, :j5, :j6, :j7, :j8, :j9)"),
-                                 {"u":u, "p":p, "n":name, "j1":js[0], "j2":js[1], "j3":js[2], "j4":js[3], "j5":js[4], "j6":js[5], "j7":js[6], "j8":js[7], "j9":js[8]})
-                    conn.commit()
-                st.success("تم إنشاء الدائرة وتخصيص الهيئة بنجاح")
-                st.rerun()
+                js = [st.text_input(f"المستشار {i+1}", key=f"new_j{i}") for i in range(9)]
+            if st.form_submit_button("✅ حفظ وإضافة"):
+                try:
+                    with engine.connect() as conn:
+                        conn.execute(text("INSERT INTO users VALUES (:u, :p, :n, :j1, :j2, :j3, :j4, :j5, :j6, :j7, :j8, :j9)"),
+                                     {"u":u, "p":p, "n":name, "j1":js[0], "j2":js[1], "j3":js[2], "j4":js[3], "j5":js[4], "j6":js[5], "j7":js[6], "j8":js[7], "j9":js[8]})
+                        conn.commit()
+                    st.success("تم إضافة الدائرة بنجاح")
+                    st.rerun()
+                except: st.error("اسم المستخدم موجود مسبقاً!")
 
-    with tab_manage:
+    # --- التبويب 2: تعديل اسم المستخدم والباسورد ---
+    with tabs[1]:
+        st.subheader("🔄 تحديث بيانات الدخول")
         with engine.connect() as conn:
-            all_users = pd.read_sql("SELECT * FROM users", conn)
+            all_u = pd.read_sql("SELECT username, circuit_name FROM users", conn)
         
-        st.subheader("📋 قائمة الدوائر المسجلة")
-        st.dataframe(all_users[['username', 'circuit_name']], use_container_width=True)
-        
-        target = st.selectbox("اختر دائرة للحذف أو التعديل", ["---"] + all_users['username'].tolist())
-        if target != "---":
-            if st.button("❌ حذف هذه الدائرة نهائياً"):
+        target_u = st.selectbox("اختر الحساب المراد تعديله", ["---"] + all_u['username'].tolist(), key="change_acc")
+        if target_u != "---":
+            curr_name = all_u[all_u['username'] == target_u]['circuit_name'].values[0]
+            st.info(f"تعديل حساب: {curr_name}")
+            
+            new_u_name = st.text_input("اسم المستخدم الجديد", value=target_u)
+            new_p_val = st.text_input("كلمة المرور الجديدة", placeholder="اتركها فارغة لو لا تريد تغييرها")
+            
+            if st.button("💾 تحديث بيانات الحساب"):
                 with engine.connect() as conn:
-                    conn.execute(text("DELETE FROM users WHERE username=:u"), {"u":target})
+                    if new_p_val:
+                        conn.execute(text("UPDATE users SET username=:nu, password=:np WHERE username=:ou"), 
+                                     {"nu": new_u_name, "np": new_p_val, "ou": target_u})
+                    else:
+                        conn.execute(text("UPDATE users SET username=:nu WHERE username=:ou"), 
+                                     {"nu": new_u_name, "ou": target_u})
+                    conn.commit()
+                st.success("✅ تم تحديث بيانات الدخول")
+                st.rerun()
+
+    # --- التبويب 3: تعديل الهيئة والأقدمية فقط ---
+    with tabs[2]:
+        st.subheader("⚖️ تحديث تشكيل وأقدمية المستشارين")
+        with engine.connect() as conn:
+            circuits = pd.read_sql("SELECT circuit_name, username FROM users", conn)
+        
+        sel_c = st.selectbox("اختر الدائرة لتعديل مستشاريها", ["---"] + circuits['circuit_name'].tolist())
+        if sel_c != "---":
+            with engine.connect() as conn:
+                curr = conn.execute(text("SELECT * FROM users WHERE circuit_name=:c"), {"c":sel_c}).fetchone()
+            
+            st.write("رتب المستشارين حسب الأقدمية (من 1 لـ 9):")
+            up_js = []
+            c_a, c_b = st.columns(2)
+            for i in range(9):
+                with c_a if i < 5 else c_b:
+                    up_js.append(st.text_input(f"المستشار رقم {i+1}", value=curr[i+3], key=f"up_j{i}"))
+            
+            if st.button("💾 حفظ تشكيل الهيئة الجديد"):
+                with engine.connect() as conn:
+                    conn.execute(text("UPDATE users SET j1=:j1, j2=:j2, j3=:j3, j4=:j4, j5=:j5, j6=:j6, j7=:j7, j8=:j8, j9=:j9 WHERE circuit_name=:c"),
+                                 {"c":sel_c, "j1":up_js[0], "j2":up_js[1], "j3":up_js[2], "j4":up_js[3], "j5":up_js[4], "j6":up_js[5], "j7":up_js[6], "j8":up_js[7], "j9":up_js[8]})
+                    conn.commit()
+                st.success("✅ تم تحديث أقدمية المستشارين بنجاح")
+
+    # --- التبويب 4: العرض الكلي والحذف ---
+    with tabs[3]:
+        st.subheader("📋 الرقابة العامة على الدوائر")
+        with engine.connect() as conn:
+            df = pd.read_sql("SELECT circuit_name as 'الدائرة', username as 'المستخدم', password as 'الباسورد' FROM users", conn)
+        st.table(df)
+        
+        target_del = st.selectbox("حذف دائرة نهائياً", ["---"] + df['المستخدم'].tolist())
+        if target_del != "---":
+            if st.button("❌ تأكيد حذف الحساب"):
+                with engine.connect() as conn:
+                    conn.execute(text("DELETE FROM users WHERE username=:u"), {"u":target_del})
                     conn.commit()
                 st.rerun()
 
-    if st.sidebar.button("تسجيل خروج"):
+    if st.sidebar.button("🚪 تسجيل خروج"):
         st.session_state.user_type = None
         st.rerun()
 
-# --- 6. واجهة الموظف (التحضير والتقفيل) ---
+# --- 5. واجهة الموظف (سحب البيانات والتقفيل) ---
 def staff_dashboard():
     data = st.session_state.user_data
-    # ترتيب المستشارين المسجلين لهذه الدائرة فقط
-    circuit_judges = [data[i] for i in range(3, 12) if data[i]]
+    # جلب المستشارين الخاصين بهذه الدائرة فقط بالترتيب
+    my_judges = [data[i] for i in range(3, 12) if data[i]]
     
-    st.title(f"🏛️ {data[2]}") # عرض اسم الدائرة
-    st.sidebar.info(f"مرحباً بك.. الهيئة الحالية: {', '.join(circuit_judges[:3])}...")
-
-    # سحب البيانات من السيستم (Simulation)
-    with st.sidebar:
-        st.header("📂 إدارة الحصة")
-        if st.button("🔄 سحب طعون اليوم من السيستم"):
-            st.session_state.cases = [
-                {'رقم الطعن': '1500', 'السنة': '94', 'اسم الطاعن': 'أحمد مجدي', 'المحكمة': 'الجيزة', 'التهمة': 'سرقة'},
-                {'رقم الطعن': '1620', 'السنة': '94', 'اسم الطاعن': 'سعيد حسن', 'المحكمة': 'القاهرة', 'التهمة': 'تزوير'}
-            ]
-            st.rerun()
+    st.title(f"🏛️ {data[2]}") # اسم الدائرة
+    st.sidebar.markdown(f"**الهيئة الحالية:**\n" + "\n".join([f"- {j}" for j in my_judges[:3]]))
+    
+    if st.sidebar.button("🔄 سحب حصة الطعون"):
+        st.session_state.cases = [
+            {'م': 1, 'رقم الطعن': '2500', 'السنة': '94', 'الطاعن': 'عباس العقاد', 'المحكمة': 'شمال القاهرة'},
+            {'م': 2, 'رقم الطعن': '3100', 'السنة': '94', 'الطاعن': 'طه حسين', 'المحكمة': 'جنوب الجيزة'}
+        ]
+        st.rerun()
 
     if st.session_state.cases:
-        t1, t2 = st.tabs(["📑 تحضير وتوزيع", "🔨 تقفيل الجلسة"])
-        
-        with t1:
-            df_prep = pd.DataFrame(st.session_state.cases)
-            for j in circuit_judges:
-                if j not in df_prep.columns: df_prep[j] = ""
+        tab1, tab2 = st.tabs(["📑 تحضير وتوزيع", "🔨 تقفيل الجلسة"])
+        with tab1:
+            df = pd.DataFrame(st.session_state.cases)
+            for j in my_judges:
+                if j not in df.columns: df[j] = ""
+            st.data_editor(df, use_container_width=True)
             
-            st.subheader("توزيع العمل على هيئة الدائرة")
-            edited = st.data_editor(df_prep, use_container_width=True, key="p_edit")
-            if st.button("💾 حفظ التوزيع الحالي"):
-                st.session_state.cases = edited.to_dict('records')
-                st.success("تم حفظ التوزيع!")
+        with tab2:
+            st.info("هنا تظهر خانات منطوق الحكم وحضور المحامين...")
 
-        with t2:
-            st.subheader("إدخال منطوق الأحكام والحضور")
-            # منطق ترتيب البيانات بناء على التوزيع
-            final_list = []
-            rank_map = {name: i for i, name in enumerate(circuit_judges)}
-            for c in st.session_state.cases:
-                row = c.copy()
-                row['المقرر'], row['sort_idx'] = "", 999
-                for j in circuit_judges:
-                    if str(c.get(j, "")).strip() == "+":
-                        row['المقرر'] = j
-                        row['sort_idx'] = rank_map[j]
-                final_list.append(row)
-            
-            final_df = pd.DataFrame(final_list).sort_values('sort_idx')
-            cases_list = final_df.to_dict('records')
-            
-            # واجهة الإدخال
-            idx = st.number_input("المسلسل (م)", 1, len(cases_list), step=1) - 1
-            curr = cases_list[idx]
-            st.warning(f"📍 طعن رقم {curr['رقم الطعن']} | {curr['اسم الطاعن']}")
-            
-            c_h, c_ho = st.columns(2)
-            with c_h:
-                h = st.text_area("منطوق الحكم", value=curr.get('منطوق الحكم', ""), key=f"h{idx}")
-            with c_ho:
-                ho = st.text_area("حضور المحامين", value=curr.get('حضور المحامين', ""), key=f"ho{idx}")
-            
-            if st.button("💾 حفظ الحكم"):
-                for c in st.session_state.cases:
-                    if str(c['رقم الطعن']) == str(curr['رقم الطعن']):
-                        c['منطوق الحكم'] = h
-                        c['حضور المحامين'] = ho
-                st.rerun()
-            
-            st.divider()
-            st.subheader("📊 معاينة الجدول النهائي")
-            st.dataframe(pd.DataFrame(st.session_state.cases), use_container_width=True)
-
-    if st.sidebar.button("تسجيل خروج"):
+    if st.sidebar.button("🚪 تسجيل خروج"):
         st.session_state.user_type = None
         st.rerun()
 
-# --- 7. المحرك الرئيسي ---
+# --- المحرك الرئيسي ---
 if st.session_state.user_type == "admin":
     admin_dashboard()
 elif st.session_state.user_type == "staff":
